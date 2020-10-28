@@ -32,20 +32,15 @@ How to run the simulations
 
 Files in archive
 ----------------
-runneuron     - run Neuron and import simulation file
-                (edit file to change of simulation file)
-expSyn3.mod   - additive synapse model
-init.hoc      - Neuron initialization file
-start3.hoc    - Neuron graphical initialization file
-vectX folders - neuronal discharge of LGN cells. vect1N contains 
-                discharges of LGN cells at 100% contrast (each file
-                representing a different orienation), vect2N at 50%, 
-                vect4N at 25% ...
-basic_model.hoc              - original model
-additive_synapses__model.hoc - same as original with additive synapses
-multiple_spikes_model.hoc    - same as original with multiple spikes
-decreased_inhib_model.hoc    - same as original with some inhibitory 
-                               connections randomly suppressed
+* runneuron: run Neuron and import simulation file (edit file to change of simulation file)
+* expSyn3.mod: additive synapse model
+* init.hoc: Neuron initialization file
+* start3.hoc: Neuron graphical initialization file
+* vectX folders: neuronal discharge of LGN cells. vect1N contains  discharges of LGN cells at 100% contrast (each file representing a different orienation), vect2N at 50%, vect4N at 25% ...)
+* basic_model.hoc: original model
+* additive_synapses__model.hoc: same as original with additive synapses
+* multiple_spikes_model.hoc: same as original with multiple spikes
+* decreased_inhib_model.hoc: same as original with some inhibitory connections randomly suppressed
 
 Notes
 -----
