@@ -55,4 +55,4 @@ of Neuron, specifically corrected this problem using my files).
 note that the model "decreased_inhib_model.hoc" runs fine even 
 under old versions of Neurons. 
 
-Arnaud Delorme, arno@salk.edu, September 25, 2003
+Arnaud Delorme, arnodelorme at gmail.com, September 25, 2003
