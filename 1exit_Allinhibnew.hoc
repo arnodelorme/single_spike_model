@@ -1,0 +1,436 @@
+// **************************************************************
+// Model of single compartment cell with fast shunting inhibition
+//
+// Programmed by Arnaud Delorme to use with the simulator Neuron
+// Date 15/01/2000
+//
+// the model is provided without any kind of warranty
+// ************************************************************** 
+
+// overview of the functions
+
+// resetSynapses()       : reset the list of excitatory synapses
+// resetSynapsesInhib()  : initialize the inhibitory receptive field
+// readvect()            : set latencies of neurones from a file
+// runall()              : simple run function
+// allrun()              : run on all orientations
+// diffrun()             : run and store latency
+// nooptrun()            : run & save without optimizing
+// optrun()              : optimizing function - find excitation for 55 to 60 degree width selectivity
+// mainRun()             : main function
+
+// set template
+begintemplate Cell 
+	public soma, syninhib, synexit, synshunt, position 
+	create soma 
+	objref syninhib // used for inhibition
+	objref synexit  // used for excitation
+	objref synshunt // used to prevent the neuron to fire more than once
+	proc init() { 
+		create soma 
+		soma { 
+      			diam = 20 		// in microM
+			//L = 20
+			insert hh
+
+			//gnabar_hh = 0.036	// S/cm2 thus 450nS
+			//gkbar_hh  = 0.004       // S/cm2 thus 50nS
+			//gl_hh  = 0.00025        // S/cm2 thus Rm = 4kO.cm2 and 3.5nS
+
+			L = 239 		// 8.8 10-9 m2 or 8.8 10-5 cm2
+			gnabar_hh = 0.100	// S/cm2 thus 450nS
+			gkbar_hh  = 0.030  // S/cm2 thus 50nS
+			//gnabar_hh = 0.0	// S/cm2 thus 450nS
+			//gkbar_hh  = 0.0  // S/cm2 thus 50nS
+			gl_hh  = 0.0001        // S/cm2 thus Rm = 4kO.cm2 and 3.5nS
+			cm     = 1
+			el_hh  = -70
+ 			ek     = -90
+			ena    = 50
+
+                        // dynamic of synapses
+			syninhib = new ExpSyn3(.5) //GABAa 
+			syninhib.tau = 5
+			syninhib.e   = 1
+			synexit = new ExpSyn(.5)  //AMPA
+			synexit.tau = 5
+			synexit.e   = 0
+			synshunt = new ExpSyn(.5) //not biological
+			synshunt.tau = 40
+			synshunt.e   = -80
+		}
+	} 
+ 
+	proc position() { local l, d 
+		x = $1 
+		y = $2 
+		soma { 
+			l = L 
+			d = diam 
+			pt3dclear() 
+			pt3dadd(x-l/2, y, 0, d) 
+			pt3dadd(x+l/2, y, 0, d) 
+		} 
+	} 
+endtemplate Cell
+
+// creating cells
+//***************
+objref exitcell        // the cell in V1
+objref inhibcell       // an inhibitory cell to prevent the previous cell to fire more than once
+objref triggercell     // cell to trigger stimulation to the V1 cell 
+exitcell = new Cell()
+inhibcell = new Cell()	
+triggercell = new Cell()
+access exitcell.soma
+
+// set variables
+realSize    = 11     // size of the receptive field realSize * realSize
+tstop       = 100    // time to stop the simulation in ms
+realExit    = 5E4    // base value for excitation
+subsampling = 1      // step factor for orientation increment
+celsius = 15
+v_init = -74.4
+
+// set objects
+objref timeM, r         // object to store latencies
+timeM  = new Matrix(723,10)
+r = new Random()
+objref timeres, apres, foutap, fouttime
+objref apc           // object to get latencies
+exitcell.soma apc = new APCount(0.5)
+apc.thresh = -10
+objref cvode         // object to perform CVODE simulations
+cvode = new CVode(1)
+
+// declaration of lists, vectors and files
+objref nclistion, nclistioff, ncliston, nclistoff, nclistmp
+nclistion   = new List()
+nclistioff  = new List()
+ncliston    = new List()
+nclistoff   = new List()
+nclistmp    = new List()
+objref f, fw, tmp2, tmpw
+f  = new File()
+fw = new File()
+tmp2  = new Vector()
+tmpw  = new Vector()
+
+// connecting excitatory and inhibitory synapses for every position
+// ****************************************************************
+for i=0, realSize*realSize-1 {
+       // synaptic weights values will be reset later
+       triggercell.soma ncliston.append(new NetCon(&v(.5), \
+	      	exitcell.synexit, -10, 100 , 0.0005 ) )
+       triggercell.soma nclistoff.append(new NetCon(&v(.5), \
+	       	exitcell.synexit, -10, 100 , 0.0005 ) )
+       triggercell.soma nclistion.append(new NetCon(&v(.5), \
+	       	exitcell.syninhib, -10, 100, 0.00006 )) 
+       triggercell.soma nclistioff.append(new NetCon(&v(.5), \
+	       	exitcell.syninhib, -10, 100, 0.00006 ))
+}
+// retroinhib the excitatory neuron whenever it spikes
+exitcell.soma nclistmp.append(new NetCon(&v(.5), inhibcell.synexit, -10, 0, 0.05 ))
+//inhibcell.soma nclistmp.append(new NetCon(&v(.5), exitcell.synshunt, -10, 2, 0.5 ))
+// stimulate trigger cell
+objref alphatrigger
+triggercell.soma alphatrigger = new AlphaSynapse(0.5)
+alphatrigger.onset = 0
+alphatrigger.tau = 0.1
+alphatrigger.gmax = 1.7
+alphatrigger.e = 0
+
+// reset the list of excitatory synapses
+// *************************************
+proc resetSynapses() {
+// $s1 = file name to get synaptic weights
+// $o2 = list of excitatory synapses to initialize
+// $3  = normalizing factor
+	fw.ropen($s1)
+	tmpw.scanf ( fw, realSize*realSize+3)
+	for i=0, realSize*realSize-1  {
+		//if (tmpw.x[i+3] != 0) rr = tmpw.x[i+3] / $3 else rr = r.normal(0, 0.0000000005)
+		//if (rr <= 0.000001) rr = 0.000001 
+    		$o2.object(i).weight = (tmpw.x[i+3]/600.0+0.1)/1.1 / $3
+	}
+	fw.close()
+}
+
+// initialize the inhibitory receptive field
+// *****************************************
+proc resetSynapsesInhib() {
+  // $o1 = inhibitory synapses corresponding to ON neurons
+  // $o2 = inhibitory synapses corresponding to OFF neurons
+  // $3  = sigma (width of the distribution of synaptic weights
+  // $4  = normalisation factor
+
+  // Compute Total Weight
+  somme = 0
+  for i=0, realSize-1 for j=0, realSize-1 {
+    absc = i - (realSize-1)/2
+    ordo = j - (realSize-1)/2
+    somme += 2*exp(-(absc*absc + ordo*ordo)/(2*$3*$3))
+  }
+
+  // renormalize to $4
+  for i=0, realSize-1 for j=0, realSize-1 {
+    absc = i - (realSize-1)/2
+    ordo = j - (realSize-1)/2
+    $o1.object(i+j*realSize).weight = exp(-(absc*absc + ordo*ordo)/(2*$3*$3))/somme*$4
+    $o2.object(i+j*realSize).weight = exp(-(absc*absc + ordo*ordo)/(2*$3*$3))/somme*$4
+  }
+}
+
+// set latencies of the neurone from a file
+// ****************************************
+proc readvect() {
+  // $o1 = list of excitatory synapses
+  // $o2 = list of inhibitory synapses
+  // $s3 = file name
+
+	f.ropen( $s3)
+	tmp2.scanf ( f, 1)
+	tm = tmp2.x[0]
+	tmp2.scanf ( f, tm )
+	index = 0
+	compteur = 0
+        // set all the latencies to 150ms (unreachable)
+	for j=0, realSize*realSize-1 {
+		$o1.object(j).delay = 150
+		$o2.object(j).delay = 150
+	}
+        tm = (tm - 2000)/2
+
+	for i=0, 1999 {
+	        sdate = i
+		counter = tmp2.x[ index ] - 1
+		index += 1
+		for j=0, counter {
+			// position of the discharge
+		        // 3 were substracted from abscice and ordinate
+		        // because of the border introduced by the retinal filter
+			pos = tmp2.x[index]-3 + (tmp2.x[index+1]-3)*realSize
+			//if (sdate > 90.0) sdate = r.uniform( 40, 90 )
+			// set latency
+			if ((pos >= 0) && (pos < realSize*realSize)) {
+			    $o1.object(pos).delay = sdate/20
+			    $o2.object(pos).delay  = sdate/20
+			}
+		        index+=2
+		}
+		compteur += 1
+	}
+	f.close()
+}
+
+//   -----------------
+// | running functions | 
+//   -----------------
+
+// simple run function
+// *******************
+proc runall() {
+  // $s1 = file name containing ON discharges
+  // $s2 = file name containing ON discharges
+
+     readvect( ncliston , nclistion,  $s1 )
+     readvect( nclistoff, nclistioff, $s2 )
+     init()
+     celsius = 15
+     run()
+     apres.append( apc.n )
+     if ( apc.n == 0) timeres.append( 100 ) else timeres.append( apc.time )
+}
+
+// run on all orientations
+// ***********************
+strdef fileNameON, fileNameOFF 
+proc allrun() {
+  // $s1 = directory
+  // $2  = subsampling factor
+  // $3  = repeated values
+  
+  for yy=0,72*$3/$2-1 {
+      sprint( fileNameON , "%s/Vect_ON_%.4d", $s1, yy*5*$2)
+      sprint( fileNameOFF, "%s/Vect_OFF_%.4d", $s1, yy*5*$2)
+      runall( fileNameON, fileNameOFF )
+  }
+}
+
+// run and store latency
+// *********************
+proc diffrun() {
+   // $s1 = directory 
+   // $2  = realExit
+   // $3  = shift
+   // $4  = subsampling factor
+   // $5  = repeated values
+
+    timeres = new Vector()
+    apres   = new Vector()
+    resetSynapses( "FS11-OR0.onp", ncliston, $2)
+    resetSynapses( "FS11-OR0.offp", nclistoff, $2)
+    allrun( $s1, $4, $5 )
+
+    timeM.x[0][$3] = realExit
+    for u=0, apres.size()-1 timeM.x[u+1][$3] = timeres.x[u]
+}
+
+// run & save without optimizing
+// *****************************
+proc nooptrun() {
+
+  //$s1 = directory
+  //$s2 = fileName	
+  //$s3 = shift
+
+  diffrun( $s1, realExit, $3, subsampling, 1 )
+  // save activation
+  fouttime  = new File()
+  fouttime.wopen( $s2 )
+  fouttime.printf("%d\n", realExit)
+  timeM.fprint( fouttime )
+  fouttime.close()
+}
+
+// optimizing function - find excitation for 55 to 60 degree width selectivity
+// ***************************************************************************
+strdef tmpStr
+proc optrun() {
+
+  //$s1 = directory
+  //$s2 = fileName	
+  //$s3 = shift
+
+  initl = 0
+  endl  = 0
+  converge = 0
+  //realExitInit = 1.5E5
+  realExitInit = 5E2
+  //realExitInit = 1924
+  realExit = realExitInit
+
+    while (((endl-initl) != 60) /*&& ((endl-initl) != 55)*/) {
+
+       if (((endl-initl) != 60) /*&& ((endl-initl) != 55)*/) {
+	 
+           // increase threshold if discharge and not in otherwise lower
+           if (converge != 0) if ((endl-initl) < 60) realExit = realExit -  realExitInit/2.0/converge else realExit = realExit + realExitInit/2.0/converge
+	   converge = converge + 1
+           sprint( tmpStr, "range %d-%d=%d : newExit %d", endl, initl, endl-initl, realExit)
+           print tmpStr
+
+	   diffrun( $s1, realExit, $3, subsampling, 1 )
+
+	   // determining activation borders
+           initl = 0
+           endl  = 0
+           for u=0, apres.size()-1 {
+	     if ((timeres.x[u] != 100) && (initl == 0) && (u <=apres.size()/2)) initl = u*5*subsampling
+	     if ((timeres.x[apres.size()-1-u] != 100) && (u <=apres.size()/2) && (endl == 0)) endl = (apres.size()-1-u)*5*subsampling
+           }
+       }
+   }
+   sprint( tmpStr, "range %d-%d=%d : exit %d", endl, initl, endl-initl, realExit)
+   print tmpStr
+
+   // save activation
+   fouttime  = new File()
+   fouttime.wopen( $s2 )
+   fouttime.printf("%d\n", realExit)
+   timeM.fprint( fouttime )
+   fouttime.close()
+}
+
+// run on different contrast
+// *************************
+proc contrastRun() {
+  // $s1 file to save
+  // $2  amount of inhibition
+  resetSynapsesInhib( nclistioff, nclistion, 20, $2)
+  optrun( "vect1N", $s1 , 0)
+  nooptrun( "vect1N", $s1 , 0)
+  nooptrun( "vect2N", $s1 , 1)
+  nooptrun( "vect4N", $s1 , 2)
+  nooptrun( "vect8N", $s1 , 3)
+  nooptrun( "vect16N", $s1 , 4)
+  nooptrun( "vect32N", $s1 , 5)
+  nooptrun( "vect64N", $s1 , 6)
+}
+
+// main function
+// *************
+proc mainRun() {
+  //contrastRun( "foutime6", 8E-0 )
+  contrastRun( "foutime7", 16E-0 )
+
+  //contrastRun( "foutime1", 0 )
+	//contrastRun( "foutime2", 5E-1 )
+	//contrastRun( "foutime3", 1E-0 )
+	//contrastRun( "foutime4", 2E-0 )
+	//contrastRun( "foutime5", 4E-0 )
+}
+
+// additional function to visualize synaptic weights
+//**************************************************
+/*
+// ploting weights
+objref g, hist, vec
+vec = new Vector()
+vec.indgen(0, ncliston.count, 1)   // x-axis for plot
+hist = new Vector(vec.size())
+g = new Graph()
+g.size(0, ncliston.count, 0, ncliston.count)
+hist.plot(g, vec)
+for(i=0; i<ncliston.count-1; i=i+1) hist.x[i] = ncliston.object(i).weight
+g.flush()
+doNotify()
+
+objref g2, hist2, vec2
+vec2 = new Vector()
+vec2.indgen(0, nclistoff.count, 1)   // x-axis for plot
+hist2 = new Vector(vec2.size())
+g2 = new Graph()
+g2.size(0, nclistoff.count, 0, nclistoff.count)
+hist2.plot(g2, vec2)
+for(i=0; i<nclistoff.count-1; i=i+1) hist2.x[i] = nclistoff.object(i).weight
+g2.flush()
+doNotify()
+
+// update graphics
+proc grUpdate() {
+        for i=0, realSize-1 for j=0, realSize-1 {
+ 		hist.x[i+j*realSize] = ncliston.object(i*realSize+j).weight
+ 		hist2.x[i+j*realSize] = nclistoff.object(i*realSize+j).weight
+	}
+	g.flush()
+	g2.flush()
+	doNotify()
+}
+
+// make random weight repartition
+proc make() {
+    for i=0, 20000 {
+	rr1 = int(r.uniform(-0.5, $o1.count-0.5))
+	rr2 = int(r.uniform(-0.5, $o1.count-0.5))
+	if (rr1 != rr2) {
+		tmp = $o1.object(rr1).weight
+		$o1.object(rr1).weight = $o1.object(rr2).weight
+		$o1.object(rr2).weight = tmp
+	}
+    }
+    grUpdate()
+}
+
+// sort weights 
+proc sort() {
+   hist.sort()
+   grUpdate()
+}
+
+// sort weights in the inverse order
+proc invsort() {
+   hist.sort()
+   hist.reverse()
+   grUpdate()
+}*/

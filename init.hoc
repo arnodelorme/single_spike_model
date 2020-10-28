@@ -1,0 +1,45 @@
+load_file("stdgui.hoc")
+xopen("1exit_Allinhibnew.hoc")
+//xopen("mynetscrpt")
+
+objref tobj
+strdef tstr
+
+// show the connections
+/*proc npan() {
+	xpanel("NetCon Info")
+	for i=0, nclist.count-1 if ((i%2) && (i<21)) {
+		tobj = nclist.object(i)
+		sprint(tstr, "%s -> %s -> %s", tobj.precell, tobj, tobj.postcell)
+		xlabel(tstr)
+		xpvalue("weight", &tobj.weight, 1)
+		//xpvalue("tau", &tobj.tau, 1)
+		xpvalue("delay", &tobj.delay, 1)
+	}
+	xpanel()
+}*/
+
+/*   objref r, g, hist, vec
+     r = new Random()
+     r.normal(-1, .5)
+
+     vec = new Vector()
+     vec.indgen(-3, 2, .1)   // x-axis for plot
+     hist = new Vector(vec.size())
+     g = new Graph()
+     g.size(-3, 2, 0, 50)
+     hist.plot(g, vec)
+     for(i=0; i<500; i=i+1){
+             x = r.repick()
+             print i, x
+             j = int((x+3)*10) // -3 to 2 -> 0 to 50
+             if (j >= 0) {
+                     hist.x[j] = hist.x[j]+1
+             }
+             g.flush()
+             doNotify()
+     }*/
+
+xopen("start3.ses")
+
+//npan()

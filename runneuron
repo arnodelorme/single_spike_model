@@ -1,0 +1,11 @@
+\rm -f 1exit_Allinhibnew.hoc
+cp basic_model.hoc 1exit_Allinhibnew.hoc
+#cp decreased_inhib_model.hoc 1exit_Allinhibnew.hoc
+#cp additive_synapses__model.hoc  1exit_Allinhibnew.hoc
+i686/special init.hoc -
+
+# NOTE: if you X-window server crashes when starting the model
+#       update your version of Neuron (Michael Hines, the developper
+#       of Neuron, specifically corrected this problem using my files).
+#       note that the model "decreased_inhib_model.hoc" runs fine even 
+#       under old versions of Neurons. 

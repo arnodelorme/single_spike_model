@@ -1,0 +1,140 @@
+objectvar save_window_, rvp_
+objectvar scene_vector_[5]
+objectvar ocbox_, ocbox_list_, scene_, scene_list_
+{ocbox_list_ = new List()  scene_list_ = new List()}
+{
+xpanel("NEURON Main Panel", 0)
+xcheckbox("Quiet",&stdrun_quiet,"")
+realtime = 0
+xvalue("Real Time","realtime", 0,"", 0, 1 )
+xbutton("RunControl","nrncontrolmenu()")
+xmenu("New Graph", 0)
+xbutton("Voltage axis","newPlotV()")
+xbutton("Current axis","newPlotI()")
+xbutton("State axis","newPlotS()")
+xbutton("Shape plot","newshapeplot()")
+xbutton("Vector movie","newvectorplot()")
+xbutton("Phase Plane","newphaseplane()")
+xbutton("Grapher","load_file(\"grapher.hoc\") makegrapher(1)")
+xmenu()
+xmenu("Point Processes", 0)
+xmenu("Managers", 0)
+xbutton("Point Manager","load_file(\"pointman.hoc\") makeppm()")
+xbutton("Point Group","load_file(\"pointgrp.hoc\") makeppgm()")
+xbutton("Electrode","load_file(\"electrod.hoc\") makeelectrode()")
+xmenu()
+xmenu("Viewers", 0)
+xmenu("PointProcesses", 0)
+xbutton("IClamp","makePointBrowser(\"IClamp\")")
+xbutton("AlphaSynapse","makePointBrowser(\"AlphaSynapse\")")
+xbutton("KSyn","makePointBrowser(\"KSyn\")")
+xbutton("SEClamp","makePointBrowser(\"SEClamp\")")
+xbutton("VClamp","makePointBrowser(\"VClamp\")")
+xbutton("APCount","makePointBrowser(\"APCount\")")
+xbutton("ExpSyn","makePointBrowser(\"ExpSyn\")")
+xmenu()
+xmenu()
+xmenu()
+xmenu("Distributed Mechanisms", 0)
+xmenu("Managers", 0)
+xbutton("Inserter","load_file(\"inserter.hoc\", \"Inserter\") makeinserter()")
+xbutton("Homogeneous Spec","load_file(\"showmech.hoc\") makeshowmechanism()")
+xmenu()
+xmenu("Viewers", 0)
+xbutton("Shape Name","load_file(\"shapebox.hoc\", \"MenuExplore\") makeMenuExplore()")
+xbutton("Name Values","nrnallsectionmenu()")
+xmenu("Mechanisms (Globals)", 0)
+xbutton("na_ion","nrnglobalmechmenu(\"na_ion\")")
+xbutton("k_ion","nrnglobalmechmenu(\"k_ion\")")
+xbutton("hh","nrnglobalmechmenu(\"hh\")")
+xmenu()
+xmenu()
+xbutton("celsius","celsius_panel()")
+xbutton("globalRa","globalra_panel()")
+xmenu()
+xmenu("Miscellaneous", 0)
+xmenu("Clipboard", 0)
+xbutton("Save to File","load_file(\"stdlib.hoc\",\"clipboard_save\") clipboard_save()")
+xbutton("Retrieve from File","load_file(\"stdlib.hoc\",\"clipboard_retrieve\") clipboard_retrieve()")
+xbutton("Gather Values","load_file(\"gatherv.hoc\") makeGatherVec()")
+xbutton("Vector Play","load_file(\"vplay.hoc\") makeVectorPlay()")
+xbutton("Vector Wrapper","load_file(\"vecwrap.hoc\") makeVecWrap()")
+xmenu()
+xmenu("Family", 0)
+xbutton("Family","load_file(\"family.hoc\",\"Family\") makeFamily()")
+xbutton("Command","load_file(\"stdlib.hoc\",\"ExecCommand\") newcommand()")
+xmenu()
+xmenu("Fitting", 0)
+xbutton("Parameterized Function","load_file(\"funfit.hoc\") makefitter()")
+xbutton("Run Fitter","load_file(\"runfit.hoc\") makerunfitter()")
+xbutton("Multiple Run Fitter","load_file(\"mulfit.hoc\") makemulrunfitter()")
+xmenu()
+xmenu("Impedance", 0)
+xbutton("Frequency","load_file(\"impratio.hoc\") makeImpRatio()")
+xbutton("Path","load_file(\"impedanx.hoc\") makeImpx()")
+xbutton("log(A) vs x","load_file(\"logax.hoc\") makelogax()")
+xbutton("Shape","load_file(\"attshape.hoc\") makeImpShape()")
+xmenu()
+xmenu("Builders", 0)
+xbutton("Cell Builder","load_file(\"celbild.hoc\") makecellbuilder()")
+xbutton("Kinetic Scheme Builder","load_file(\"kinbuild.hoc\") makekineticbuilder()")
+xmenu()
+xmenu()
+xpanel(25,21)
+}
+{
+xpanel("RunControl", 0)
+xcheckbox("Use variable dt",&using_cvode_,"cvode_active()")
+v_init = -70
+xvalue("Init","v_init", 1,"stdinit()", 1, 1 )
+xbutton("Init & Run","run()")
+xbutton("Stop","stoprun=1")
+runStopAt = 5
+xvalue("Continue til","runStopAt", 1,"{continuerun(runStopAt) stoprun=1}", 1, 1 )
+runStopIn = 1
+xvalue("Continue for","runStopIn", 1,"{continuerun(t + runStopIn) stoprun=1}", 1, 1 )
+xbutton("Single Step","steprun()")
+t = 0
+xvalue("t","t", 2 )
+tstop = 110
+xvalue("Tstop","tstop", 1,"tstop_changed()", 0, 1 )
+dt = 0.025
+xvalue("dt","dt", 1,"setdt()", 0, 1 )
+steps_per_ms = 40
+xvalue("Points plotted/ms","steps_per_ms", 1,"setdt()", 0, 1 )
+xpanel(18,441)
+}
+{
+save_window_ = new Graph(0)
+save_window_.size(0,110,-1.5,0.6)
+scene_vector_[2] = save_window_
+{save_window_.view(0, -1.5, 110, 2.1, 341, 21, 356.16, 215.68)}
+graphList[0].append(save_window_)
+save_window_.save_name("graphList[0].")
+save_window_.addvar("exitcell.syninhib.i", 3, 1, 0.543574, 0.875001, 2)
+save_window_.addvar("exitcell.synexit.i", 2, 1, 0.543375, 0.873294, 2)
+save_window_.addexpr("exitcell.soma.ik( 0.5 )", 7, 1, 0.573585, 0.664095, 2)
+save_window_.addvar("exitcell.soma.ina( 0.5 )", 6, 1, 0.562803, 0.81543, 2)
+save_window_.addexpr("exitcell.synexit.i+exitcell.syninhib.i", 4, 1, 0.250135, 1.70119, 2)
+}
+{
+save_window_ = new Graph(0)
+save_window_.size(0,110,-0.001,0.013)
+scene_vector_[3] = save_window_
+{save_window_.view(0, -0.001, 110, 0.014, 341, 287, 403.2, 280.96)}
+graphList[0].append(save_window_)
+save_window_.save_name("graphList[0].")
+save_window_.addvar("exitcell.syninhib.g", 4, 2, 1.04048, 0.428474, 2)
+save_window_.addvar("exitcell.synexit.g", 2, 2, 1.0119, 0.561731, 2)
+}
+{
+save_window_ = new Graph(0)
+save_window_.size(0,110,-90,50)
+scene_vector_[4] = save_window_
+{save_window_.view(0, -90, 110, 140, 316, 636, 341.76, 196.48)}
+graphList[0].append(save_window_)
+save_window_.save_name("graphList[0].")
+save_window_.addvar("exitcell.soma.v( 0.5 )", 4, 1, 1.00225, 0.87557, 2)
+}
+objectvar scene_vector_[1]
+{doNotify()}
