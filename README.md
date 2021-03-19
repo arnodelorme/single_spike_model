@@ -1,3 +1,6 @@
+The instructions below are highly outdated. However, the model
+might still run in recent versions of Neuron.
+
 How to run the simulations
 --------------------------
 1) compile the Neuron software (www.neuron.yale.edu)
