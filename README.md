@@ -47,8 +47,8 @@ Files in archive
 
 Publication
 -----------
-Arnaud Delorme (2003) (Early Cortical Orientation Selectivity: How Fast Inhibition Decodes the Order of Spike Latencies)[https://www.researchgate.net/publication/9008719_Early_Cortical_Orientation_Selectivity_How_Fast_Inhibition_Decodes_the_Order_of_Spike_Latencies
-]. Journal of Computational Neuroscience 15(3):357-65
+Arnaud Delorme (2003) [Early Cortical Orientation Selectivity: How Fast Inhibition Decodes the Order of Spike Latencies](https://www.researchgate.net/publication/9008719_Early_Cortical_Orientation_Selectivity_How_Fast_Inhibition_Decodes_the_Order_of_Spike_Latencies
+). Journal of Computational Neuroscience 15(3):357-65
 
 Notes
 -----
